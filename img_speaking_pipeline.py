@@ -45,33 +45,6 @@ class ImageSpeakingPipeline:
         self.tokenizer = BertTokenizerFast.from_pretrained(tokenizer_path)
 
     def __call__(self, image_path, length_penalty=1.0, early_stopping=False, num_return_sequences=1):
-        def after_cls(prediction_scores, input_ids, is_end = False):
-            prediction_scores = torch.tensor(prediction_scores[0])
-            input_ids = torch.tensor(input_ids)
-            
-            next_token_logits = prediction_scores[:, -1, :]
-            next_token_scores = nn.functional.log_softmax(
-                        next_token_logits, dim=-1
-                    )
-            next_token_scores = next_token_scores + beam_scores[:, None].expand_as(next_token_scores)
-            next_token_scores = next_token_scores.view(batch_size, num_beams * vocab_size)
-            next_token_scores, next_tokens = torch.topk(
-                        next_token_scores, 2 * num_beams, dim=1, largest=True, sorted=True
-                    )
-            next_indices = torch_int_div(next_tokens, vocab_size)
-            next_tokens = next_tokens % vocab_size
-            
-            beam_outputs = beam_scorer.process(
-                        input_ids = input_ids,
-                        next_scores = next_token_scores,
-                        next_tokens =next_tokens,
-                        next_indices = next_indices,
-                        pad_token_id=pad_token_id,
-                        eos_token_id=eos_token_id,
-                        # beam_indices=None,
-                    )
-            
-            return beam_outputs
         ############## init ###############
         beam_scorer = BeamSearchScorer(
                             batch_size=batch_size,
@@ -95,7 +68,6 @@ class ImageSpeakingPipeline:
         index = np.argwhere(tag[0] == 1)
         token = self.tag_list[index].squeeze(axis=1)
         tag_output.append(' | '.join(token))
-        print('tag_output', tag_output)
         image_embed = np.repeat(image_embed, num_beams, axis=0)
 
         tag_input_temp = []
@@ -110,7 +82,6 @@ class ImageSpeakingPipeline:
         encoder_input_ids[:, 0] = 30523
         attention_mask = tokenized_tag_input.attention_mask.astype(np.int32)
         image_atts = np.ones((3, 145)).astype(np.int32)
-        print('tag_encoder_infer')
         output_tagembedding = self.tag_encoder_infer([encoder_input_ids.astype(np.int32), attention_mask, image_embed.astype(np.float32), image_atts.astype(np.int32)])
         last_hidden_state = output_tagembedding[0]
         
@@ -120,14 +91,34 @@ class ImageSpeakingPipeline:
                                     [30522,  1037,  3861,  1997],
                                     [30522,  1037,  3861,  1997]]).astype(np.int32)
         attention_mask = np.ones((3,4)).astype(np.int32)
-        print('bert_infer_first')
         output_bert = self.bert_infer_first([input_ids_first, attention_mask, last_hidden_state])
         sequence_output = output_bert[0]
-        print('bert_cls_infer_first')
         prediction_scores = self.bert_cls_infer_first([sequence_output])
+            
+        prediction_scores = torch.tensor(prediction_scores[0])
+        input_ids = torch.tensor(input_ids_first)
         
-        beam_outputs = after_cls(prediction_scores, input_ids_first)
-
+        next_token_logits = prediction_scores[:, -1, :]
+        next_token_scores = nn.functional.log_softmax(
+                    next_token_logits, dim=-1
+                )
+        next_token_scores = next_token_scores + beam_scores[:, None].expand_as(next_token_scores)
+        next_token_scores = next_token_scores.view(batch_size, num_beams * vocab_size)
+        next_token_scores, next_tokens = torch.topk(
+                    next_token_scores, 2 * num_beams, dim=1, largest=True, sorted=True
+                )
+        next_indices = torch_int_div(next_tokens, vocab_size)
+        next_tokens = next_tokens % vocab_size
+        
+        beam_outputs = beam_scorer.process(
+                    input_ids=input_ids,
+                    next_scores=next_token_scores,
+                    next_tokens=next_tokens,
+                    next_indices=next_indices,
+                    pad_token_id=pad_token_id,
+                    eos_token_id=eos_token_id,
+                    # beam_indices=None,
+                )
         beam_scores = beam_outputs["next_beam_scores"]
         beam_next_tokens = beam_outputs["next_beam_tokens"]
         beam_idx = beam_outputs["next_beam_indices"]
@@ -135,70 +126,70 @@ class ImageSpeakingPipeline:
         input_ids_global = torch.cat([input_ids_global[beam_idx, :], beam_next_tokens.unsqueeze(-1)], dim=-1)
 
         for i in range(5, 25):
-            if i == 24:
-                is_end = True
-            attention_mask = np.ones((3, i)).astype(np.int32)
+            attention_mask = np.ones((3,i)).astype(np.int32)
             input_ids = input_ids_global[:, -1:]
-            print('bert_module', i)
+            
             input_ids = np.array(input_ids).astype(np.int32)
-            output_bert = self.bert_modules[i-5]([input_ids, 
-                                                    attention_mask, 
-                                                    last_hidden_state, 
-                                                    output_bert[1],
-                                                    output_bert[2],
-                                                    output_bert[3],
-                                                    output_bert[4],
-                                                    output_bert[5],
-                                                    output_bert[6],
-                                                    output_bert[7],
-                                                    output_bert[8],
-                                                    output_bert[9],
-                                                    output_bert[10],
-                                                    output_bert[11],
-                                                    output_bert[12],
-                                                    output_bert[13],
-                                                    output_bert[14],
-                                                    output_bert[15],
-                                                    output_bert[16],
-                                                    output_bert[17],
-                                                    output_bert[18],
-                                                    output_bert[19],
-                                                    output_bert[20],
-                                                    output_bert[21],
-                                                    output_bert[22],
-                                                    output_bert[23],
-                                                    output_bert[24]])
-            sequence_output = output_bert[0]                    
+            output_bert = self.bert_modules[i-5]([input_ids, attention_mask ,last_hidden_state,output_bert[1],
+                                                                            output_bert[2],
+                                                                            output_bert[3],
+                                                                            output_bert[4],
+                                                                            output_bert[5],
+                                                                            output_bert[6],
+                                                                            output_bert[7],
+                                                                            output_bert[8],
+                                                                            output_bert[9],
+                                                                            output_bert[10],
+                                                                            output_bert[11],
+                                                                            output_bert[12],
+                                                                            output_bert[13],
+                                                                            output_bert[14],
+                                                                            output_bert[15],
+                                                                            output_bert[16],
+                                                                            output_bert[17],
+                                                                            output_bert[18],
+                                                                            output_bert[19],
+                                                                            output_bert[20],
+                                                                            output_bert[21],
+                                                                            output_bert[22],
+                                                                            output_bert[23],
+                                                                            output_bert[24]])
+            sequence_output = output_bert[0]
             prediction_scores = self.bert_cls_infer([sequence_output])
             
-            next_token_logits = prediction_scores[0][:, -1, :]
+            prediction_scores = torch.tensor(prediction_scores[0])
+            input_ids_global = torch.tensor(input_ids_global)
             
-            if is_end: 
-                prediction_scores = torch.tensor(prediction_scores[0])
-                input_ids = torch.tensor(input_ids)
-                
-                next_token_logits = prediction_scores[:, -1, :]
-                next_token_scores = nn.functional.log_softmax(
-                            next_token_logits, dim=-1
-                        )
-                next_token_scores = next_token_scores + beam_scores[:, None].expand_as(next_token_scores)
-                next_token_scores = next_token_scores.view(batch_size, num_beams * vocab_size)
-                next_token_scores, next_tokens = torch.topk(
-                            next_token_scores, 2 * num_beams, dim=1, largest=True, sorted=True
-                        )
-                next_indices = torch_int_div(next_tokens, vocab_size)
-                next_tokens = next_tokens % vocab_size
-                break
+            next_token_logits = prediction_scores[:, -1, :]
+            next_token_scores = nn.functional.log_softmax(
+                        next_token_logits, dim=-1
+                    )
+            next_token_scores = next_token_scores + beam_scores[:, None].expand_as(next_token_scores)
+            next_token_scores = next_token_scores.view(batch_size, num_beams * vocab_size)
+            next_token_scores, next_tokens = torch.topk(
+                        next_token_scores, 2 * num_beams, dim=1, largest=True, sorted=True
+                    )
+            next_indices = torch_int_div(next_tokens, vocab_size)
+            next_tokens = next_tokens % vocab_size
             
-            beam_outputs = after_cls(prediction_scores,input_ids_global,is_end)
+            beam_outputs = beam_scorer.process(
+                        input_ids=input_ids_global,
+                        next_scores=next_token_scores,
+                        next_tokens=next_tokens,
+                        next_indices=next_indices,
+                        pad_token_id=pad_token_id,
+                        eos_token_id=eos_token_id,
+                        # beam_indices=None,
+                    )
             beam_scores = beam_outputs["next_beam_scores"]
             beam_next_tokens = beam_outputs["next_beam_tokens"]
             beam_idx = beam_outputs["next_beam_indices"]
+
             input_ids_global = torch.cat([input_ids_global[beam_idx, :], beam_next_tokens.unsqueeze(-1)], dim=-1)
             
-        beam_scores = beam_outputs["next_beam_scores"]
-        beam_next_tokens = beam_outputs["next_beam_tokens"]
-        beam_idx = beam_outputs["next_beam_indices"]
+            if beam_scorer.is_done:
+                break
+
 
         sequence_outputs = beam_scorer.finalize(
                             input_ids_global,
