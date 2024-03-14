@@ -27,7 +27,7 @@ class ImageSpeakingPipeline:
         tag_decoder_path='bmodel/t2t/encoder_f32.bmodel',
         tag_list='./resources/tag_list/tag2text_ori_tag_list.txt',
         label_embed_path='bmodel/t2t/label_embed.npz',
-        tokenizer_path='./new_token_path/bert-base-uncased', #'./resources/bert-base-uncased',
+        tokenizer_path='./resources/bert-base-uncased',
         bert_path_first='bmodel/bert/ram_bert4_F16.bmodel',
         bert_cls_first_path='bmodel/bert/bert_cls_first_F16.bmodel',
         bert_cls_path='bmodel/bert/bert_cls_F16.bmodel',
