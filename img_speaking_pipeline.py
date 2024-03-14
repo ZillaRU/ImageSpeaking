@@ -68,7 +68,7 @@ class ImageSpeakingPipeline:
                         next_indices = next_indices,
                         pad_token_id=pad_token_id,
                         eos_token_id=eos_token_id,
-                        beam_indices=None,
+                        # beam_indices=None,
                     )
             
             return beam_outputs
@@ -208,7 +208,7 @@ class ImageSpeakingPipeline:
                             pad_token_id=pad_token_id,
                             eos_token_id=eos_token_id,
                             max_length=stopping_criteria_max_length,
-                            beam_indices=None,
+                            # beam_indices=None,
                     )
 
         outputs = sequence_outputs['sequences']
