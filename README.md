@@ -14,5 +14,5 @@
    pip3 install dfss -U
    python3 -m dfss --url=open@sophgo.com:/aigc/hik_llm.tar.gz
    ```
-6. 运行demo。`python3 app.py`，模型加载完毕后终端会显示端口号，浏览器访问`本机ip:端口号`即可。
+6. 运行demo。`python3 app.py -n [描述的数量]`，模型加载完毕后终端会显示端口号，浏览器访问`本机ip:端口号`即可。
 

@@ -1,3 +1,4 @@
+# -*- coding: UTF-8 -*-
 import os
 import argparse
 import gradio as gr
@@ -9,16 +10,19 @@ import time
 
 
 parser = argparse.ArgumentParser(prog=__file__)
+parser.add_argument('-n', '--number', type=int, default=3, help="the number of sentences")
 args = parser.parse_args()
 
 pipeline = ISPipeline()
 
-def describe_image(img_path):
+NUM_OF_DESCRIPTION=args.number
+
+def describe_image(img_path, num=NUM_OF_DESCRIPTION):
     if img_path is None:
         return '[ INVALID INPUT ]'
-    img_description, tags = pipeline(img_path)
+    img_description, tags = pipeline(img_path, num_return_sequences=num)
     print(img_description, tags)
-    return img_description
+    return "\n".join([i.replace("a picture of ","") for i in img_description])
 
 
 # Description
@@ -44,7 +48,7 @@ with gr.Blocks(css=css, title="看图说话") as demo:
         with gr.Column():
             img_inputs = gr.Image(label="选择图片", value=default_example[0], sources=['upload'], type='filepath')
         with gr.Column():
-            img_descrip_text = gr.Textbox(label='💬', interactive=False)
+            img_descrip_text = gr.Textbox(label='💬', text_size=6, lines=3, interactive=False)
             
 
     # Submit & Clear
