@@ -1,7 +1,8 @@
 gradio==4.21.0
 torch==2.1.2
 numpy==1.24.4
+transformer==4.18.0
 opencv-python-headless==4.8.1.78
 pillow
 argparse
-./tpu_perf-1.2.17-py3-none-manylinux2014_aarch64.whl
+tpu_perf -f ./tpu_perf-1.2.35-py3-none-manylinux2014_aarch64.whl
