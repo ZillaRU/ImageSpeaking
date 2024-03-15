@@ -14,3 +14,16 @@
    ```
 6. 运行demo，`python3 app.py -n [描述语句的个数，默认为1]`，模型加载完毕后终端会显示端口号，浏览器访问`本机ip:端口号`即可。
     <img width="960" alt="示例" src="https://github.com/ZillaRU/ImageSpeaking/assets/25343084/f722efbc-ea2c-4e74-b556-d43cf42dedb7">
+
+## 耗时统计
+此为应用跑在服务器上测试的耗时数据，cpu耗时相比airbox可能偏短。未计入网络延迟。
+|操作|耗时 (秒)|备注|
+|---|---|---|
+|image preprocess【CPU】|0.078|可用TPU加速。|
+|SWIN【TPU，FP16】|0.045||
+|tagging_head_infer【TPU，FP16】|0.021||
+|tag_encoder_infer【TPU，FP32】|0.011||
+|bert_infer_first【TPU，FP16】|0.011||
+|bert_cls_infer_first【TPU，FP16】|0.006||
+|BERT modules【TPU，FP16】|0.252||
+|*看图说话Total*|0.436||
