@@ -1,3 +1,4 @@
+gradio_cached*
 bmodel
 *.bmodel
 *__pycache__**
