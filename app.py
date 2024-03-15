@@ -10,7 +10,7 @@ import time
 
 
 parser = argparse.ArgumentParser(prog=__file__)
-parser.add_argument('-n', '--number', type=int, default=3, help="the number of sentences")
+parser.add_argument('-n', '--number', type=int, default=1, help="the number of sentences")
 args = parser.parse_args()
 
 pipeline = ISPipeline()
@@ -28,7 +28,13 @@ def describe_image(img_path, num=NUM_OF_DESCRIPTION):
 # Description
 title = f"<center><strong><font size='8'>看图说话💬 powered by 1684x <font></strong></center>"
 
-default_example = ["./resources/image/demo1.jpg", "./resources/image/demo3.jpg"]
+default_examples = [
+        "./resources/image/demo1.png",
+        "./resources/image/demo2.jpg",
+        "./resources/image/demo3.jpg",
+        "./resources/image/demo4.png",
+        "./resources/image/demo5.png",
+        "./resources/image/demo6.jpg"]
 
 css = "h1 { text-align: center } .about { text-align: justify; padding-left: 10%; padding-right: 10%; }"
 
@@ -46,9 +52,9 @@ with gr.Blocks(css=css, title="看图说话") as demo:
             """
     with gr.Row():
         with gr.Column():
-            img_inputs = gr.Image(label="选择图片", value=default_example[0], sources=['upload'], type='filepath')
+            img_inputs = gr.Image(label="选择图片", value=default_examples[0], sources=['upload'], type='filepath')
         with gr.Column():
-            img_descrip_text = gr.Textbox(label='💬', text_size=6, lines=3, interactive=False)
+            img_descrip_text = gr.Textbox(label='💬', lines=3, interactive=False)
             
 
     # Submit & Clear
@@ -66,14 +72,22 @@ with gr.Blocks(css=css, title="看图说话") as demo:
             # Description
             gr.Markdown(description_p)
 
-    btn_p.click(
-        describe_image, inputs=[img_inputs], outputs=[img_descrip_text]
-    )
+        btn_p.click(describe_image, inputs=[img_inputs], outputs=[img_descrip_text])
+
     def clear():
         return [None, None]
-
     clear_btn_p.click(clear, outputs=[img_inputs, img_descrip_text])
 
+
+    with gr.Column():
+        gr.Examples(
+                label="试试这些例子⬇️",
+                examples=default_examples,
+                inputs=[img_inputs],
+                outputs=[img_descrip_text],
+                fn=describe_image,
+                cache_examples=True,
+                examples_per_page=6)
 
 demo.queue()
 demo.launch(ssl_verify=False, server_name="0.0.0.0")
