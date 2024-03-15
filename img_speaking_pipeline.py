@@ -2,6 +2,7 @@ import argparse
 import numpy as np
 import random
 import os
+import time
 import cv2
 from npuengine import EngineOV
 from PIL import Image
@@ -45,6 +46,7 @@ class ImageSpeakingPipeline:
         self.tokenizer = BertTokenizerFast.from_pretrained(tokenizer_path)
 
     def __call__(self, image_path, length_penalty=1.0, early_stopping=False, num_return_sequences=1):
+        st0 = time.time()
         ############## init ###############
         beam_scorer = BeamSearchScorer(
                             batch_size=batch_size,
@@ -54,16 +56,20 @@ class ImageSpeakingPipeline:
                             do_early_stopping=early_stopping,
                             num_beam_hyps_to_keep=num_return_sequences,
                         )
-        is_end = False
         beam_scores = torch.zeros((batch_size, num_beams), dtype=torch.float, device="cpu")
         beam_scores[:, 1:] = -1e9
         beam_scores = beam_scores.view((batch_size * num_beams,))
 
+        st = time.time()
         input_swin = preprocess(image_path, image_size=(384, 384))
+        print("================image preprocess", time.time()-st)
+        st = time.time()
         image_embed = self.swin_infer([input_swin])[0]
+        print("================[TPU] swin", time.time()-st)
         image_atts = np.ones((1, 145)).astype(np.int32)
-
+        st = time.time()
         tag = self.tagging_head_infer([self.label_embed, image_embed, image_atts])[0]
+        print("================[TPU] tagging_head_infer", time.time()-st)
         tag_output = []
         index = np.argwhere(tag[0] == 1)
         token = self.tag_list[index].squeeze(axis=1)
@@ -82,7 +88,9 @@ class ImageSpeakingPipeline:
         encoder_input_ids[:, 0] = 30523
         attention_mask = tokenized_tag_input.attention_mask.astype(np.int32)
         image_atts = np.ones((3, 145)).astype(np.int32)
+        st = time.time()
         output_tagembedding = self.tag_encoder_infer([encoder_input_ids.astype(np.int32), attention_mask, image_embed.astype(np.float32), image_atts.astype(np.int32)])
+        print("================[TPU] tag_encoder_infer", time.time()-st)
         last_hidden_state = output_tagembedding[0]
         
         # _____text decoder______
@@ -91,10 +99,13 @@ class ImageSpeakingPipeline:
                                     [30522,  1037,  3861,  1997],
                                     [30522,  1037,  3861,  1997]]).astype(np.int32)
         attention_mask = np.ones((3,4)).astype(np.int32)
+        st = time.time()
         output_bert = self.bert_infer_first([input_ids_first, attention_mask, last_hidden_state])
+        print("================[TPU] bert_infer_first", time.time()-st)
         sequence_output = output_bert[0]
+        st = time.time()
         prediction_scores = self.bert_cls_infer_first([sequence_output])
-            
+        print("================[TPU] bert_cls_infer_first", time.time()-st)
         prediction_scores = torch.tensor(prediction_scores[0])
         input_ids = torch.tensor(input_ids_first)
         
@@ -125,6 +136,7 @@ class ImageSpeakingPipeline:
         input_ids_global = torch.tensor(input_ids_first)
         input_ids_global = torch.cat([input_ids_global[beam_idx, :], beam_next_tokens.unsqueeze(-1)], dim=-1)
 
+        st = time.time()
         for i in range(5, 25):
             attention_mask = np.ones((3,i)).astype(np.int32)
             input_ids = input_ids_global[:, -1:]
@@ -189,7 +201,7 @@ class ImageSpeakingPipeline:
             
             if beam_scorer.is_done:
                 break
-
+        print("================[TPU] BERT modules", time.time()-st)
 
         sequence_outputs = beam_scorer.finalize(
                             input_ids_global,
@@ -207,5 +219,5 @@ class ImageSpeakingPipeline:
         for output in outputs:
             caption = self.tokenizer.decode(output, skip_special_tokens=True)
             captions.append(caption)
-        
+        print("================[Total]", time.time()-st0)
         return captions, tag_output[0]
