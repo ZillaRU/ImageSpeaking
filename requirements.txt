@@ -1,8 +1,8 @@
-gradio==4.21.0
-torch==2.1.2
-numpy==1.24.4
-transformer==4.18.0
-opencv-python-headless==4.8.1.78
+gradio
+torch
+numpy
+transformers
+opencv-python-headless
 pillow
 argparse
-tpu_perf -f ./tpu_perf-1.2.35-py3-none-manylinux2014_aarch64.whl
+https://github.com/ZillaRU/AigcHub-TPU/releases/download/v0.1/tpu_perf-1.2.35-py3-none-manylinux2014_aarch64.whl
